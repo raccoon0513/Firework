@@ -8,9 +8,154 @@ import './App.css';
 // (canvasElement, ctx, width, height, eventData, canvasIndex)
 // ====================================================================
 
+// 애니메이션 관리를 위한 Map (공유)
+const fireworksSystems = new Map(); // 각 캔버스의 폭죽 입자 및 로켓 상태를 저장
+const animationFrames = new Map(); // 각 캔버스의 애니메이션 프레임 ID를 저장
+
+// Firework Particle / Rocket Class (로직 재사용을 위해 필수)
+class FireworkElement {
+  constructor(type, x, y, options) {
+    this.type = type; // 'rocket' 또는 'particle'
+    this.x = x;
+    this.y = y;
+    this.alpha = options.alpha !== undefined ? options.alpha : 1;
+
+    if (type === 'rocket') {
+        this.targetY = options.targetY;
+        this.speed = options.speed || 8;
+        this.color = options.color || '#ffffff';
+        this.trail = [];
+        this.finished = false;
+    } else { // type === 'particle'
+        this.vx = options.vx;
+        this.vy = options.vy;
+        this.color = options.color;
+        this.size = options.size || 3;
+        this.gravity = options.gravity || 0.015;
+        this.friction = options.friction || 0.98;
+    }
+  }
+
+  update(width, height) {
+    if (this.type === 'rocket') {
+        this.y -= this.speed;
+        this.trail.push({ x: this.x, y: this.y });
+        if (this.trail.length > 10) this.trail.shift();
+
+        // 목표 지점 도달 시 폭발 준비
+        if (this.y <= this.targetY) {
+            this.finished = true;
+        }
+    } else { // type === 'particle'
+        this.vx *= this.friction;
+        this.vy += this.gravity;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.alpha -= 0.005;
+        this.size *= 0.99;
+    }
+  }
+
+  draw(ctx) {
+    if (this.type === 'rocket') {
+      // 로켓 궤적 그리기
+      ctx.fillStyle = this.color;
+      this.trail.forEach((pos, i) => {
+        ctx.globalAlpha = i / this.trail.length;
+        ctx.fillRect(pos.x - 1, pos.y - 1, 2, 2);
+      });
+      ctx.globalAlpha = 1;
+    } else {
+      // 입자 그리기
+      ctx.save();
+      ctx.globalAlpha = this.alpha;
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+// 애니메이션 루프 함수 (Gemini/Claude 통합 로직에서 사용)
+const animateCanvas = (canvas, ctx, canvasIndex, options = {}) => {
+    // 캔버스 크기 업데이트
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const width = canvas.width;
+    const height = canvas.height;
+
+    const { backgroundColor = 'black', friction = 0.98, gravity = 0.015, particleCount = 100, colors = ['#ff0000', '#ff6600', '#ffff00', '#00ff00', '#0099ff', '#9900ff', '#ff00ff', '#ffffff'] } = options;
+
+    // 반투명 배경으로 페이드 효과
+    ctx.fillStyle = `${backgroundColor}1a`; 
+    ctx.fillRect(0, 0, width, height);
+
+    let elements = fireworksSystems.get(canvasIndex) || [];
+
+    elements = elements.filter(el => {
+        el.update(width, height);
+
+        if (el.type === 'rocket' && el.finished) {
+            // 폭발 로직 (Claude의 createExplosion 로직)
+            for (let i = 0; i < particleCount; i++) {
+                const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
+                const speed = Math.random() * 3 + 2;
+                elements.push(new FireworkElement('particle', el.x, el.y, {
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    gravity: gravity,
+                    friction: friction,
+                }));
+            }
+            return false; // 로켓 제거
+        }
+        
+        el.draw(ctx);
+        
+        // 입자가 너무 작거나 투명해지면 제거
+        if (el.type === 'particle' && (el.alpha <= 0 || el.size <= 0.5)) return false;
+
+        return true;
+    });
+
+    fireworksSystems.set(canvasIndex, elements);
+
+    if (elements.length > 0) {
+        const frameId = requestAnimationFrame(() => animateCanvas(canvas, ctx, canvasIndex, options));
+        animationFrames.set(canvasIndex, frameId);
+    } else {
+        animationFrames.delete(canvasIndex);
+    }
+};
+
+
+// 캔버스에 로켓을 추가하고 애니메이션을 시작하는 헬퍼 함수
+const startRocketAnimation = (x, y, height, canvasIndex, options) => {
+  let elements = fireworksSystems.get(canvasIndex) || [];
+  
+  // 로켓 추가 (항상 캔버스 맨 아래에서 시작)
+  elements.push(new FireworkElement('rocket', x, height, {
+    targetY: y,
+    speed: 8,
+    color: options.colors[Math.floor(Math.random() * options.colors.length)],
+  }));
+
+  fireworksSystems.set(canvasIndex, elements);
+
+  // 애니메이션 루프가 실행 중이 아니라면 시작
+  if (!animationFrames.has(canvasIndex)) {
+    const canvas = document.getElementById(`canvas-${canvasIndex}`);
+    const ctx = canvas.getContext('2d');
+    animateCanvas(canvas, ctx, canvasIndex, options);
+  }
+};
+
+
 // AI 1: Gemini - 로직 통합 대기 중 (인덱스 0)
-const aiCanvasLogic1 = (canvas, ctx, width, height, eventData) => {
-  // 캔버스 초기 상태 설정 (예: 클릭 시 초기화)
+const aiCanvasLogic1 = (canvas, ctx, width, height, eventData, canvasIndex) => {
   if (eventData.type === 'mousedown') {
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
@@ -22,16 +167,34 @@ const aiCanvasLogic1 = (canvas, ctx, width, height, eventData) => {
   }
 };
 
-// AI 2: Claude - 로직 통합 대기 중 (인덱스 1)
-const aiCanvasLogic2 = (canvas, ctx, width, height, eventData) => {
-  if (eventData.type === 'mousedown') {
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.fillRect(0, 0, width, height);
-    ctx.font = '24px Arial';
-    ctx.fillStyle = 'gray';
-    ctx.textAlign = 'center';
-    ctx.fillText('로직 대기 중 (Claude)', width / 2, height / 2);
+// AI 2: Claude - Firework Logic (통합된 로직)
+const aiCanvasLogic2 = (canvas, ctx, width, height, eventData, canvasIndex) => {
+  // Claude AI에게 할당된 파라미터 (FireworksCanvas의 기본값을 재현)
+  const options = {
+    backgroundColor: 'black',
+    particleCount: 100,
+    gravity: 0.015,
+    friction: 0.98,
+    colors: ['#ff0000', '#ff6600', '#ffff00', '#00ff00', '#0099ff', '#9900ff', '#ff00ff', '#ffffff'],
+  };
+
+  // 마우스 클릭 이벤트가 발생했을 때 로켓 발사
+  if (eventData.type === 'mousedown' && eventData.coords) {
+    const { x, y } = eventData.coords;
+    startRocketAnimation(x, y, height, canvasIndex, options);
+  }
+
+  // 캔버스 초기 상태 설정 또는 애니메이션 유지
+  if (!animationFrames.has(canvasIndex)) {
+     ctx.fillStyle = options.backgroundColor;
+     ctx.fillRect(0, 0, width, height);
+     ctx.font = '24px Arial';
+     ctx.fillStyle = 'white';
+     ctx.textAlign = 'center';
+     ctx.fillText('Claude: 클릭하여 폭죽 발사', width / 2, height / 2);
+  } else {
+     // 애니메이션 루프가 이미 실행 중이라면 배경만 업데이트
+     animateCanvas(canvas, ctx, canvasIndex, options);
   }
 };
 
@@ -79,82 +242,7 @@ const aiCanvasLogic5 = (canvas, ctx, width, height, eventData) => {
 // [2] 캔버스 및 애니메이션 관리 (빈 틀 유지)
 // ====================================================================
 
-// 애니메이션 관리를 위한 Map은 비워둡니다.
-const particleSystems = new Map();
-const animationFrames = new Map();
-
-// Firework Particle Class (로직 재사용을 위해 남겨둠)
-class Particle {
-  constructor(x, y, color, size, velocity, gravity, friction, drag = false) {
-    this.x = x;
-    this.y = y;
-    this.color = color;
-    this.size = size;
-    this.velocity = velocity;
-    this.alpha = 1;
-    this.gravity = gravity !== undefined ? gravity : 0.05;
-    this.friction = friction !== undefined ? friction : 0.99;
-    this.drag = drag;
-    this.isDragging = false;
-  }
-
-  update() {
-    if (!this.drag) {
-      this.velocity.x *= this.friction;
-      this.velocity.y *= this.friction;
-      this.velocity.y += this.gravity; 
-      this.x += this.velocity.x;
-      this.y += this.velocity.y;
-    }
-    this.alpha -= 0.01;
-  }
-
-  draw(ctx) {
-    ctx.save();
-    ctx.globalAlpha = this.alpha;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-    ctx.fillStyle = this.color;
-    ctx.fill();
-    ctx.restore();
-  }
-}
-
-// 애니메이션 루프 (로직 재사용을 위해 남겨둠)
-const animateFirework = (canvas, ctx, width, height, canvasIndex) => {
-    // 캔버스 크기 업데이트
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    width = canvas.width;
-    height = canvas.height;
-
-    // 배경 지우기
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; 
-    ctx.fillRect(0, 0, width, height);
-    
-    let particles = particleSystems.get(canvasIndex) || [];
-
-    for (let i = particles.length - 1; i >= 0; i--) {
-        const particle = particles[i];
-        
-        if (!particle.drag) {
-            particle.update();
-        }
-        
-        particle.draw(ctx);
-
-        if (particle.alpha <= 0 || particle.y > height || particle.y < 0) {
-            particles.splice(i, 1);
-        }
-    }
-
-    if (particles.length > 0) {
-        const frameId = requestAnimationFrame(() => animateFirework(canvas, ctx, width, height, canvasIndex));
-        animationFrames.set(canvasIndex, frameId);
-    } else {
-        animationFrames.delete(canvasIndex);
-    }
-};
+// Firework Particle Class는 [1] 섹션으로 이동했습니다.
 
 
 // AI 이름과 로직 매핑
@@ -187,9 +275,10 @@ const App = () => {
       
       const firstCanvasWrapper = document.getElementById('canvas-wrapper-0');
       if (firstCanvasWrapper) {
+          // 이름표 높이 계산은 복잡하므로 간단화 (레이아웃 템플릿 유지)
           setCanvasDims({
               width: firstCanvasWrapper.offsetWidth,
-              height: singleRowHeight - 10 - (firstCanvasWrapper.nextElementSibling ? firstCanvasWrapper.nextElementSibling.offsetHeight : 0)
+              height: singleRowHeight // 근사치 사용
           });
       }
     } else {
@@ -202,6 +291,7 @@ const App = () => {
     window.addEventListener('resize', calculateRowHeight);
     return () => {
       window.removeEventListener('resize', calculateRowHeight);
+      // 컴포넌트 언마운트 시 모든 애니메이션 프레임 정리
       animationFrames.forEach(frameId => cancelAnimationFrame(frameId));
     };
   }, [calculateRowHeight]);
@@ -211,7 +301,8 @@ const App = () => {
   const handleInteraction = useCallback((e, index) => {
     const isMouseDown = e.type === 'mousedown';
     const isMouseUp = e.type === 'mouseup';
-    const isMouseMove = e.type === 'mousemove';
+    // Claude 로직은 로켓 발사 로직만 필요하므로, onMouseMove는 임시로 주석 처리
+    const isMouseMove = e.type === 'mousemove'; 
 
     if (isMouseDown || isMouseUp || isMouseMove) {
       // 1. 클릭 좌표 계산 (모든 캔버스에 동일하게 전달될 좌표)
@@ -235,7 +326,7 @@ const App = () => {
           canvas.height = height;
           
           // 해당 AI의 로직 실행 (로직 함수는 eventData를 사용하여 동기화된 작업을 수행)
-          // index 0~4에 해당하는 로직 함수를 호출
+          // aiCanvasLogic2는 Claude의 통합 로직을 사용합니다.
           aiConfig[canvasIndex].logic(canvas, ctx, width, height, eventData, canvasIndex);
         }
       });
