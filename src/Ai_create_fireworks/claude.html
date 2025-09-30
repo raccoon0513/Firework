@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>폭죽 효과</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        body {
+            background: #0a0a1a;
+        }
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="fireworks"></canvas>
+    <script>
+        const canvas = document.getElementById('fireworks');
+        const ctx = canvas.getContext('2d');
+
+        // 화면 크기에 맞게 캔버스 설정
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        const particles = [];
+        const rockets = [];
+
+        class Rocket {
+            constructor(startX, targetX, targetY) {
+                this.x = startX;
+                this.y = canvas.height;
+                this.targetX = targetX;
+                this.targetY = targetY;
+                this.speed = 5;
+                this.trail = [];
+                this.reached = false;
+                
+                // 목표 지점까지의 각도 계산
+                const dx = this.targetX - this.x;
+                const dy = this.targetY - this.y;
+                const angle = Math.atan2(dy, dx);
+                this.vx = Math.cos(angle) * this.speed;
+                this.vy = Math.sin(angle) * this.speed;
+                
+                this.color = `hsl(${Math.random() * 360}, 100%, 70%)`;
+            }
+
+            update() {
+                if (!this.reached) {
+                    this.trail.push({ x: this.x, y: this.y });
+                    if (this.trail.length > 10) this.trail.shift();
+                    
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    
+                    // 목표 지점에 도달했는지 확인
+                    const dist = Math.hypot(this.targetX - this.x, this.targetY - this.y);
+                    if (dist < 5) {
+                        this.reached = true;
+                        this.explode();
+                    }
+                }
+            }
+
+            draw() {
+                if (!this.reached) {
+                    // 꼬리 그리기
+                    ctx.beginPath();
+                    for (let i = 0; i < this.trail.length; i++) {
+                        const t = this.trail[i];
+                        const alpha = (i + 1) / this.trail.length;
+                        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
+                        ctx.fillRect(t.x - 1, t.y - 1, 2, 2);
+                    }
+                    
+                    // 로켓 그리기
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            explode() {
+                const particleCount = 80;
+                const hue = Math.random() * 360;
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const angle = (Math.PI * 2 * i) / particleCount;
+                    const speed = Math.random() * 4 + 2;
+                    particles.push(new Particle(
+                        this.targetX,
+                        this.targetY,
+                        Math.cos(angle) * speed,
+                        Math.sin(angle) * speed,
+                        hue
+                    ));
+                }
+            }
+        }
+
+        class Particle {
+            constructor(x, y, vx, vy, hue) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.gravity = 0.05;
+                this.friction = 0.98;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.02 + 0.01;
+                this.hue = hue + Math.random() * 30 - 15;
+                this.brightness = Math.random() * 30 + 50;
+            }
+
+            update() {
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = `hsl(${this.hue}, 100%, ${this.brightness}%)`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // 바닥 중앙에서 시작
+            const startX = canvas.width / 2 + (Math.random() - 0.5) * 100;
+            rockets.push(new Rocket(startX, x, y));
+        });
+
+        function animate() {
+            ctx.fillStyle = 'rgba(10, 10, 26, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 로켓 업데이트 및 그리기
+            for (let i = rockets.length - 1; i >= 0; i--) {
+                rockets[i].update();
+                rockets[i].draw();
+                if (rockets[i].reached) {
+                    rockets.splice(i, 1);
+                }
+            }
+
+            // 파티클 업데이트 및 그리기
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

@@ -1,74 +1,47 @@
-/* src/App.css */
+/* 전체 화면 컨테이너 설정 */
+.container {
+  display: flex; /* Flexbox를 사용하여 아이템 배치 */
+  flex-wrap: wrap; /* 아이템이 컨테이너 크기를 초과하면 다음 줄로 넘어가도록 설정 */
+  width: 100%; /* 전체 너비 사용 */
+  height: 100vh; /* 뷰포트 전체 높이 사용 */
+  gap: 10px; /* 아이템 간 간격 설정 */
+  padding: 10px;
+  box-sizing: border-box; /* 패딩과 테두리가 너비/높이에 포함되도록 설정 */
+}
 
-.App {
-  text-align: center;
-  padding: 5px; 
-  background-color: #f0f0f0;
-  /* 뷰포트의 전체 높이(100vh)에서 상하 패딩 (5px * 2 = 10px)을 제외한 크기로 조정 */
-  height: calc(100vh - 10px); 
-  width: 100%; 
+/* 각 아이템(div) 설정 */
+.item {
+  /* 6개 아이템을 가로 2개로 배치하기 위해 너비를 50%로 설정 */
+  /* gap을 고려하여 calc() 사용: (100% - 간격) / 2 */
+  width: calc(50% - 15px); 
+  /* 높이: 세로 3개 배치이므로 (100% - 간격) / 3 */
+  height: calc((100vh - 30px) / 3 - 10px); 
+  display: flex; /* 내부 컨텐츠(iframe, p) 배치를 위해 flex 사용 */
+  flex-direction: column; /* 세로 방향으로 정렬 */
+  border: 1px solid #ccc; /* 아이템 구분을 위한 테두리 (선택 사항) */
   box-sizing: border-box;
+  overflow: hidden; /* 내용이 넘칠 경우 숨김 */
+  position: relative; /* 네임태그 위치 지정을 위해 설정 가능 */
 }
 
-.Grid-container {
-  display: grid;
-  /* 가로 2칸 */
-  grid-template-columns: repeat(2, 1fr); 
-  /* JS에서 계산된 픽셀 높이를 사용하여 3개 행의 높이를 정확히 지정 */
-  grid-template-rows: repeat(3, var(--row-height)); /* <--- 이 줄을 수정했습니다. */
-  gap: 8px; 
+/* iframe 설정 */
+.content-frame {
+  flex-grow: 1; /* 남은 공간을 모두 차지하도록 설정 */
   width: 100%;
-  height: 100%; /* .App의 내부 공간을 꽉 채움 */
-  margin: 0; 
+  height: 100%; /* flex-grow가 설정되어 있어, 이 값은 유동적입니다. */
 }
 
-.Grid-item {
-  /* 요청하신 3px solid black border 유지 */
-  border: 3px solid black; 
-  padding: 5px; 
-  background-color: white;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: space-between;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-}
-
-.Canvas-wrapper {
-  flex-grow: 1;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 5px;
-  overflow: hidden;
-}
-
-.Canvas-element,
-.Empty-slot {
-  width: 100%; 
-  height: 100%;
-  
-  border: 1px solid #333;
-  background-color: #eee;
-  display: block; 
-}
-
-.Empty-slot {
-  border: 1px dashed #999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #555;
-  font-weight: normal;
-}
-
-.Name-tag {
-  flex-shrink: 0;
-  font-weight: bold;
-  font-size: 1em;
-  color: #333;
-  padding: 3px 0;
-  white-space: nowrap;
+/* 네임태그 (p 태그) 설정 */
+.name-tag {
+  background-color: rgba(0, 0, 0, 0.7); /* 배경을 반투명하게 설정 */
+  color: white;
+  padding: 5px 10px;
+  margin: 0;
+  text-align: center;
+  font-size: 0.9em;
+  /* (선택 사항) absolute 위치를 사용하여 iframe 위에 겹쳐 표시할 수도 있습니다. */
+  /* position: absolute; 
+     bottom: 0; 
+     left: 0; 
+     width: 100%; */
 }

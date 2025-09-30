@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Canvas Fireworks</title>
+  <style>
+    html, body { height: 100%; margin: 0; background: #000; }
+    canvas { display: block; }
+    .hint { position: fixed; left: 12px; top: 12px; color: rgba(255,255,255,0.8); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+  </style>
+</head>
+<body>
+  <div class="hint">클릭하면 바닥에서 폭죽이 올라와 클릭한 위치에서 터집니다.</div>
+  <canvas id="cw"></canvas>
+  <script>
+    const canvas = document.getElementById('cw');
+    const ctx = canvas.getContext('2d');
+
+    function resize(){
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize, {passive:true});
+    resize();
+
+    // 파티클 유틸
+    function random(min, max){ return Math.random() * (max - min) + min; }
+
+    class Particle{
+      constructor(x,y, vx, vy, life, color){
+        this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+        this.life = life; this.age = 0; this.color = color; this.size = random(1,3);
+      }
+      update(dt){
+        this.vy += 0.06; // gravity
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.age += dt;
+      }
+      draw(ctx){
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      get alive(){ return this.age < this.life; }
+    }
+
+    const rockets = [];
+    const particles = [];
+
+    function spawnRocket(targetX){
+      const x = random(50, canvas.width - 50);
+      const y = canvas.height - 10; // ground
+      const speed = random(6, 9);
+      const vx = (targetX - x) / 60; // roughly reach in ~1s
+      const vy = -speed;
+      rockets.push({x,y,vx,vy,targetX,age:0});
+    }
+
+    function explode(x,y){
+      const count = 80 + Math.floor(random(-20,20));
+      const hue = Math.floor(random(0,360));
+      for(let i=0;i<count;i++){
+        const angle = Math.random()*Math.PI*2;
+        const speed = random(1,6);
+        const vx = Math.cos(angle)*speed;
+        const vy = Math.sin(angle)*speed;
+        const life = random(1.2,2.2);
+        const color = `hsl(${hue + random(-20,20)} 100% ${random(50,70)}%)`;
+        particles.push(new Particle(x,y,vx,vy,life,color));
+      }
+    }
+
+    let last = performance.now();
+    function tick(now){
+      const dt = Math.min( (now - last) / 16.6667, 4 );
+      last = now;
+
+      // fade background slightly
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(0,0,canvas.width, canvas.height);
+
+      // update rockets
+      for(let i=rockets.length-1;i>=0;i--){
+        const r = rockets[i];
+        r.vy += 0.08; // gravity
+        r.x += r.vx * dt * 16.6667;
+        r.y += r.vy * dt * 16.6667;
+        r.age += dt;
+        // draw rocket
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, 2.5, 0, Math.PI*2);
+        ctx.fill();
+        if(r.vy >= 0 || r.y < canvas.height * 0.25 || r.age > 120){
+          // explode at click's x but current y
+          explode(r.targetX, r.y);
+          rockets.splice(i,1);
+        }
+      }
+
+      // update particles
+      for(let i=particles.length-1;i>=0;i--){
+        const p = particles[i];
+        p.update(dt * 16.6667);
+        p.draw(ctx);
+        if(!p.alive){ particles.splice(i,1); }
+      }
+
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    // click handler
+    canvas.addEventListener('pointerdown', (e)=>{
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      spawnRocket(x);
+    });
+
+    // initial fill
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,canvas.width, canvas.height);
+  </script>
+</body>
+</html>
