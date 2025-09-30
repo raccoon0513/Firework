@@ -20,6 +20,8 @@
         }
         /* 캔버스 스타일 */
         #fireworksCanvas {
+            height: 100%;
+        width: 100%;
             display: block;
         }
         /* 안내 메시지 스타일 */
@@ -69,8 +71,8 @@
 
         // 캔버스 크기를 창 크기에 맞게 설정하고 메시지를 숨기는 함수
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
             // 배경을 검정색으로 다시 채우기
             ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);

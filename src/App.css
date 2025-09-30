@@ -14,8 +14,8 @@
   /* 6개 아이템을 가로 2개로 배치하기 위해 너비를 50%로 설정 */
   /* gap을 고려하여 calc() 사용: (100% - 간격) / 2 */
   width: calc(50% - 15px); 
-  /* 높이: 세로 3개 배치이므로 (100% - 간격) / 3 */
-  height: calc((100vh - 30px) / 3 - 10px); 
+  /* 높이 수정: 100vh에서 위/아래 padding (20px)과 두 개의 수직 gap (20px)을 제외하고 3으로 나눕니다. */
+  height: calc((100vh - 40px) / 3); 
   display: flex; /* 내부 컨텐츠(iframe, p) 배치를 위해 flex 사용 */
   flex-direction: column; /* 세로 방향으로 정렬 */
   border: 1px solid #ccc; /* 아이템 구분을 위한 테두리 (선택 사항) */

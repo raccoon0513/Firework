@@ -10,11 +10,17 @@
             padding: 0;
             overflow: hidden;
         }
+        html,body{
+            height: 100%;
+            width: 100%;
+        }
         body {
             background: #0a0a1a;
         }
         canvas {
             display: block;
+            height: 100%;
+            width: 100%;
             cursor: crosshair;
         }
     </style>
@@ -27,8 +33,8 @@
 
         // 화면 크기에 맞게 캔버스 설정
         function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
         }
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);

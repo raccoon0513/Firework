@@ -4,12 +4,13 @@
   <meta charset="UTF-8">
   <title>폭죽 캔버스</title>
   <style>
+    /* ========== 수정된 CSS 부분 ========== */
     html, body {
       margin: 0;
       padding: 0;
       overflow: hidden;
-      width: 100vw;
-      height: 100vh;
+      width: 100%; /* 100vw -> 100%로 수정 */
+      height: 100%; /* 100vh -> 100%로 수정 */
       background: #070816;
     }
     canvas {
@@ -17,11 +18,12 @@
       position: absolute;
       top: 0;
       left: 0;
-      width: 100vw;
-      height: 100vh;
+      width: 100%; /* 100vw -> 100%로 수정 */
+      height: 100%; /* 100vh -> 100%로 수정 */
       background: #070816;
       cursor: pointer;
     }
+    /* ================================= */
   </style>
 </head>
 <body>
@@ -31,8 +33,9 @@
   const ctx = canvas.getContext('2d');
 
   function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    // window.innerWidth/Height 대신, iframe 크기에 맞춰진 canvas 요소의 실제 픽셀 크기를 사용
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
   }
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
@@ -67,8 +70,9 @@
 
   class Firework {
     constructor(targetX, targetY) {
+      // y 시작점을 canvas.height로 설정하여, 캔버스 크기에 맞춰 시작합니다.
       this.x = targetX;
-      this.y = canvas.height;
+      this.y = canvas.height; 
       this.targetX = targetX;
       this.targetY = targetY;
       this.state = 'fly';
@@ -117,6 +121,7 @@
   let fireworks = [];
 
   canvas.addEventListener('click', (e) => {
+    // 클릭 좌표를 캔버스 기준 좌표로 정확히 가져옴
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
