@@ -1,4 +1,7 @@
 /* 전체 화면 컨테이너 설정 */
+body{
+  background-color: black;
+}
 .container {
   display: flex; /* Flexbox를 사용하여 아이템 배치 */
   flex-wrap: wrap; /* 아이템이 컨테이너 크기를 초과하면 다음 줄로 넘어가도록 설정 */
